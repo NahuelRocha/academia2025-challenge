@@ -1,0 +1,76 @@
+version: "3.8"
+
+services:
+  # Base de datos PostgreSQL
+  postgres:
+    image: postgres:15-alpine
+    container_name: academia2025_postgres_dev
+    environment:
+      POSTGRES_DB: challege_api
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data_dev:/var/lib/postgresql/data
+    networks:
+      - academia2025_dev
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d challege_api"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # API de la aplicación
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder # Usar la etapa builder para desarrollo
+    container_name: academia2025_api_dev
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: challege_api
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      TOKEN_EXPIRY_HOURS: 24
+    ports:
+      - "3000:3000"
+    volumes:
+      # Hot reload para desarrollo
+      - ./src:/app/src:ro
+      - ./logs:/app/logs
+    networks:
+      - academia2025_dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    # Override del comando para desarrollo con nodemon
+    command: npm run dev
+
+  # Adminer para gestión de base de datos (solo desarrollo)
+  adminer:
+    image: adminer:4.8.1-standalone
+    container_name: academia2025_adminer_dev
+    ports:
+      - "8080:8080"
+    networks:
+      - academia2025_dev
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+volumes:
+  postgres_data_dev:
+    name: academia2025_postgres_data_dev
+
+networks:
+  academia2025_dev:
+    name: academia2025_dev_network
+    driver: bridge
