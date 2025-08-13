@@ -62,9 +62,17 @@ jobs:
           script: |
             set -e
             echo "=== Moviendo archivos de configuración a /tmp ==="
-            cp /home/nrocha/academianovit-chall/*.yml /tmp/ || true
-            cp /home/nrocha/academianovit-chall/*.yaml /tmp/ || true
-            cp /home/nrocha/academianovit-chall/*.conf /tmp/ || true
+            # Asegurar que /tmp/ esté limpio primero
+            rm -f /tmp/*.yml /tmp/*.yaml /tmp/*.conf
+
+            # Copiar con nombres exactos (evitar sobreescrituras)
+            cp /home/nrocha/academianovit-chall/prometheus.yml /tmp/
+            cp /home/nrocha/academianovit-chall/loki-config.yaml /tmp/
+            cp /home/nrocha/academianovit-chall/promtail-config.yaml /tmp/
+            cp /home/nrocha/academianovit-chall/nginx.conf /tmp/
+
+            echo "=== Contenido de /tmp/ ==="
+            ls -la /tmp/
 
             echo "=== Ejecutando setup_env.sh ==="
             bash /home/nrocha/scripts/setup_env.sh
