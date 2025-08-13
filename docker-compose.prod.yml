@@ -118,6 +118,8 @@ services:
       - "--storage.tsdb.path=/prometheus"
       - "--storage.tsdb.retention.time=30d"
       - "--web.enable-lifecycle"
+      - "--web.external-url=/prometheus/"
+      - "--web.route-prefix=/"
     configs:
       - source: prometheus_config
         target: /etc/prometheus/prometheus.yml
@@ -182,10 +184,9 @@ services:
   loki:
     image: grafana/loki:2.8.0
     command: ["-config.file=/etc/loki/loki-config.yaml"]
-    user: "10001:10001" # Usuario no-root para seguridad
     volumes:
       - loki_data:/loki
-      - loki_wal:/wal # Volumen adicional para WAL
+      - loki_wal:/wal
     networks:
       - backend
     configs:
