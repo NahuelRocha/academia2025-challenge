@@ -44,3 +44,11 @@ jobs:
             ghcr.io/nahuelrocha/academia2025-challenge:latest
           cache-from: type=registry,ref=ghcr.io/nahuelrocha/academia2025-challenge:cache
           cache-to: type=registry,ref=ghcr.io/nahuelrocha/academia2025-challenge:cache,mode=max
+
+      - name: Scan for vulnerabilities
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: "ghcr.io/nahuelrocha/academia2025-challenge:${{ env.TAG }}"
+          format: "table"
+          exit-code: "0"
+          severity: "CRITICAL"

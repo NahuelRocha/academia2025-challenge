@@ -1,0 +1,111 @@
+name: Deploy to VM via Docker Swarm
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Create project directory and copy files
+        run: |
+          ssh -p ${{ secrets.VM_PORT }} ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} << 'EOF'
+            set -e
+            mkdir -p /home/nrocha/academianovit-chall
+            rm -rf /home/nrocha/academianovit-chall/*
+          EOF
+          scp -P ${{ secrets.VM_PORT }} \
+            prometheus.yml loki-config.yaml promtail-config.yaml nginx.conf docker-compose.prod.yml \
+            ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }}:/home/nrocha/academianovit-chall/
+
+      - name: Run setup script on VM
+        run: |
+          ssh -p ${{ secrets.VM_PORT }} ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} << 'EOF'
+            set -e
+            # Mover archivos de configuración a /tmp para el script setup_env.sh
+            cp /home/nrocha/academianovit-chall/*.yml /tmp/
+            cp /home/nrocha/academianovit-chall/*.conf /tmp/
+            cp /home/nrocha/academianovit-chall/*.yaml /tmp/
+            bash /home/nrocha/scripts/setup_env.sh
+            # Limpiar archivos temporales después del setup
+            rm -f /tmp/prometheus.yml /tmp/loki-config.yaml /tmp/promtail-config.yaml /tmp/nginx.conf
+          EOF
+
+      - name: Pull latest Docker image & deploy stack
+        run: |
+          ssh -p ${{ secrets.VM_PORT }} ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} << 'EOF'
+            set -e
+            echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            docker pull ghcr.io/nahuelrocha/academia2025-challenge:latest
+            docker stack deploy -c /home/nrocha/academianovit-chall/docker-compose.prod.yml academia2025
+          EOF
+
+      - name: Wait for services to be healthy and gather debug info
+        run: |
+          ssh -p ${{ secrets.VM_PORT }} ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} << 'EOF'
+            set -e
+            SERVICES=(api prometheus grafana loki cadvisor node-exporter postgres)
+            for svc in "${SERVICES[@]}"; do
+              echo "🔹 Verificando servicio $svc..."
+              TIMEOUT=120
+              ELAPSED=0
+              INTERVAL=5
+              while true; do
+                STATE=$(docker service ps $svc --filter 'desired-state=running' --format '{{.CurrentState}}')
+                HEALTH=$(docker inspect --format='{{json .UpdateStatus}}' $(docker ps --filter "name=${svc}" -q 2>/dev/null) 2>/dev/null)
+                if echo "$STATE" | grep -q "Running" && [[ "$HEALTH" == *"completed"* || "$HEALTH" == "null" ]]; then
+                  echo "✅ $svc está running y healthy"
+                  break
+                fi
+                if [ $ELAPSED -ge $TIMEOUT ]; then
+                  echo "❌ Timeout alcanzado para $svc"
+                  echo "Estado actual del servicio:"
+                  docker service ps $svc
+                  echo "Logs recientes del servicio:"
+                  docker service logs --tail 20 $svc
+                  exit 1
+                fi
+                sleep $INTERVAL
+                ELAPSED=$((ELAPSED + INTERVAL))
+              done
+            done
+          EOF
+
+      - name: Cleanup temporary files
+        run: |
+          ssh -p ${{ secrets.VM_PORT }} ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} << 'EOF'
+            set -e
+            rm -f /tmp/docker-compose.prod.yml
+            echo "✅ Limpieza de archivos temporales completada"
+          EOF
+
+      - name: Send deployment notification to Discord
+        if: success()
+        run: |
+          curl -H "Content-Type: application/json" \
+            -X POST \
+            -d '{"content":"✅ Deployment completado correctamente en /home/nrocha/academianovit-chall/"}' \
+            ${{ secrets.DISCORD_WEBHOOK_URL }}
+
+      - name: Send failure notification to Discord
+        if: failure()
+        run: |
+          curl -H "Content-Type: application/json" \
+            -X POST \
+            -d '{"content":"❌ Deployment falló. Verifica los logs del workflow."}' \
+            ${{ secrets.DISCORD_WEBHOOK_URL }}

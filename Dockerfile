@@ -1,6 +1,6 @@
 # Multi-stage build para optimización
 # Etapa 1: Build Stage
-FROM node:18-alpine AS builder
+FROM node:18.20.3-alpine AS builder
 
 # Configurar directorio de trabajo
 WORKDIR /app
@@ -19,20 +19,20 @@ COPY src/ ./src/
 RUN npm run build
 
 # Etapa 2: Production Stage  
-FROM node:18-alpine AS production
+FROM node:18.20.3-alpine AS production
 
-# Instalar dumb-init para manejo de señales del SO
-RUN apk add --no-cache dumb-init
+# Instalar dumb-init para manejo de señales del SO y limpieza de cache
+RUN apk add --no-cache dumb-init && \
+    rm -rf /var/cache/apk/*
 
 # Crear usuario no-root para seguridad
 RUN addgroup -g 1001 -S nodejs && \
-    adduser -S api -u 1001
+    adduser -S api -u 1001 && \
+    mkdir -p /app/logs && \
+    chown -R api:nodejs /app
 
 # Configurar directorio de trabajo
 WORKDIR /app
-
-# Cambiar ownership del directorio a usuario nodejs
-RUN chown -R api:nodejs /app
 
 # Cambiar a usuario no-root
 USER api
@@ -40,15 +40,12 @@ USER api
 # Copiar package.json y package-lock.json
 COPY --chown=api:nodejs package*.json ./
 
-# Instalar solo dependencias de producción
+# Instalar solo dependencias de producción y limpiar cache
 RUN npm ci --only=production && \
     npm cache clean --force
 
 # Copiar código compilado desde build stage
 COPY --chown=api:nodejs --from=builder /app/dist ./dist
-
-# Crear directorio para logs
-RUN mkdir -p logs
 
 # Exponer puerto de la aplicación
 EXPOSE 3000
