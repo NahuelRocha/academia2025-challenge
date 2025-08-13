@@ -61,6 +61,11 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             set -e
+            echo "=== Moviendo archivos de configuración a /tmp ==="
+            cp /home/nrocha/academianovit-chall/*.yml /tmp/ || true
+            cp /home/nrocha/academianovit-chall/*.yaml /tmp/ || true
+            cp /home/nrocha/academianovit-chall/*.conf /tmp/ || true
+
             echo "=== Ejecutando setup_env.sh ==="
             bash /home/nrocha/scripts/setup_env.sh
 
