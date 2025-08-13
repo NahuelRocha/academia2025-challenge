@@ -1,9 +1,6 @@
 name: Deploy to VM via Docker Swarm
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
 
 jobs:
@@ -17,82 +14,112 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up SSH key
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+      - name: Debug - List files
+        run: ls -la
 
-      - name: Create project directory and copy files
-        run: |
-          ssh -p ${{ secrets.VM_PORT }} ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} << 'EOF'
+      - name: Prepare remote directory
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VM_HOST }}
+          port: ${{ secrets.VM_PORT }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
             set -e
             mkdir -p /home/nrocha/academianovit-chall
             rm -rf /home/nrocha/academianovit-chall/*
-          EOF
-          scp -P ${{ secrets.VM_PORT }} \
-            prometheus.yml loki-config.yaml promtail-config.yaml nginx.conf docker-compose.prod.yml \
+
+      - name: Copy files to server
+        run: |
+          set -e
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > /tmp/private_key
+          chmod 600 /tmp/private_key
+
+          # Copia todos los .yml/.yaml/.conf y el docker-compose
+          scp -i /tmp/private_key -P ${{ secrets.VM_PORT }} -o StrictHostKeyChecking=no \
+            *.yml *.yaml *.conf \
             ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }}:/home/nrocha/academianovit-chall/
 
-      - name: Run setup script on VM
-        run: |
-          ssh -p ${{ secrets.VM_PORT }} ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} << 'EOF'
-            set -e
-            # Mover archivos de configuración a /tmp para el script setup_env.sh
-            cp /home/nrocha/academianovit-chall/*.yml /tmp/
-            cp /home/nrocha/academianovit-chall/*.conf /tmp/
-            cp /home/nrocha/academianovit-chall/*.yaml /tmp/
-            bash /home/nrocha/scripts/setup_env.sh
-            # Limpiar archivos temporales después del setup
-            rm -f /tmp/prometheus.yml /tmp/loki-config.yaml /tmp/promtail-config.yaml /tmp/nginx.conf
-          EOF
+          rm /tmp/private_key
 
-      - name: Pull latest Docker image & deploy stack
-        run: |
-          ssh -p ${{ secrets.VM_PORT }} ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} << 'EOF'
+      - name: Verify copied files
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VM_HOST }}
+          port: ${{ secrets.VM_PORT }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            ls -la /home/nrocha/academianovit-chall/
+
+      - name: Run setup and deploy
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VM_HOST }}
+          port: ${{ secrets.VM_PORT }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
             set -e
+            echo "=== Ejecutando setup_env.sh ==="
+            bash /home/nrocha/scripts/setup_env.sh
+
+            echo "=== Login en GHCR y despliegue ==="
             echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             docker pull ghcr.io/nahuelrocha/academia2025-challenge:latest
             docker stack deploy -c /home/nrocha/academianovit-chall/docker-compose.prod.yml academia2025
-          EOF
 
-      - name: Wait for services to be healthy and gather debug info
-        run: |
-          ssh -p ${{ secrets.VM_PORT }} ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} << 'EOF'
+      - name: Verify services health
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VM_HOST }}
+          port: ${{ secrets.VM_PORT }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
             set -e
-            SERVICES=(api prometheus grafana loki cadvisor node-exporter postgres)
+            STACK=academia2025
+            SERVICES=(postgres postgres-exporter api nginx prometheus node-exporter cadvisor grafana loki promtail)
+
             for svc in "${SERVICES[@]}"; do
-              echo "🔹 Verificando servicio $svc..."
+              FULL_NAME="${STACK}_${svc}"
+              echo "🔹 Verificando servicio $FULL_NAME..."
               TIMEOUT=120
               ELAPSED=0
               INTERVAL=5
+
               while true; do
-                STATE=$(docker service ps $svc --filter 'desired-state=running' --format '{{.CurrentState}}')
-                HEALTH=$(docker inspect --format='{{json .UpdateStatus}}' $(docker ps --filter "name=${svc}" -q 2>/dev/null) 2>/dev/null)
-                if echo "$STATE" | grep -q "Running" && [[ "$HEALTH" == *"completed"* || "$HEALTH" == "null" ]]; then
-                  echo "✅ $svc está running y healthy"
+                STATE=$(docker service ps "$FULL_NAME" --filter 'desired-state=running' --format '{{.CurrentState}}')
+                if echo "$STATE" | grep -q "Running"; then
+                  echo "✅ $FULL_NAME está corriendo"
                   break
                 fi
                 if [ $ELAPSED -ge $TIMEOUT ]; then
-                  echo "❌ Timeout alcanzado para $svc"
-                  echo "Estado actual del servicio:"
-                  docker service ps $svc
-                  echo "Logs recientes del servicio:"
-                  docker service logs --tail 20 $svc
+                  echo "❌ Timeout alcanzado para $FULL_NAME"
+                  echo "=== Estado actual del servicio ==="
+                  docker service ps "$FULL_NAME"
+                  echo "=== Logs recientes ==="
+                  docker service logs --tail 30 "$FULL_NAME" || true
+                  echo "=== Inspect del servicio ==="
+                  docker service inspect "$FULL_NAME" || true
                   exit 1
                 fi
                 sleep $INTERVAL
                 ELAPSED=$((ELAPSED + INTERVAL))
               done
             done
-          EOF
 
       - name: Cleanup temporary files
-        run: |
-          ssh -p ${{ secrets.VM_PORT }} ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} << 'EOF'
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VM_HOST }}
+          port: ${{ secrets.VM_PORT }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
             set -e
-            rm -f /tmp/docker-compose.prod.yml
+            rm -f /tmp/*.yml /tmp/*.yaml /tmp/*.conf
             echo "✅ Limpieza de archivos temporales completada"
-          EOF
 
       - name: Send deployment notification to Discord
         if: success()
