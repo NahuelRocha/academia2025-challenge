@@ -180,15 +180,10 @@ services:
     depends_on:
       - prometheus
 
-  # Loki - VERSIÓN SIMPLIFICADA Y FUNCIONAL
+  # Loki
   loki:
     image: grafana/loki:2.8.0
-    command:
-      [
-        "sh",
-        "-c",
-        "mkdir -p /loki/index /loki/cache /loki/chunks /loki/compactor && chown -R 10001:10001 /loki /wal && su-exec 10001:10001 /usr/bin/loki -config.file=/etc/loki/loki-config.yaml",
-      ]
+    command: ["-config.file=/etc/loki/loki-config.yaml"]
     volumes:
       - loki_data:/loki
       - loki_wal:/wal
@@ -197,11 +192,6 @@ services:
     configs:
       - source: loki_config
         target: /etc/loki/loki-config.yaml
-    user: root
-    deploy:
-      replicas: 1
-      restart_policy:
-        condition: on-failure
 
   # Promtail
   promtail:
