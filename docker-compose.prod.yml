@@ -218,7 +218,6 @@ volumes:
   postgres_data:
   prometheus_data:
   grafana_data:
-  grafana_provisioning:
   loki_data:
   nginx_config:
   nginx_certs:
