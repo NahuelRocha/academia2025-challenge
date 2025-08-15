@@ -104,6 +104,22 @@ jobs:
             echo "=== Ejecutando setup_env.sh ==="
             bash /home/nrocha/scripts/setup_env.sh
 
+            echo "=== Verificación de secrets antes del deploy ==="
+            echo "📋 Lista completa de secrets:"
+            docker secret ls
+            echo ""
+            echo "🔍 Verificando secrets específicos de Grafana:"
+            if docker secret inspect grafana_smtp_user >/dev/null 2>&1; then
+              echo "✅ grafana_smtp_user existe"
+              docker secret inspect grafana_smtp_user --format '{{.Spec.Name}} - Creado: {{.CreatedAt}}'
+            else
+              echo "❌ grafana_smtp_user NO existe"
+              echo "🚨 ERROR CRÍTICO: Este secret debería existir"
+              exit 1
+            fi
+
+            sleep 3
+
             echo "=== Login en GHCR y despliegue ==="
             echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             docker pull ghcr.io/nahuelrocha/academia2025-challenge:latest

@@ -242,6 +242,10 @@ secrets:
     external: true
   grafana_admin_password:
     external: true
+  grafana_smtp_user:
+    external: true
+  grafana_smtp_password:
+    external: true
 
 configs:
   nginx_config:
