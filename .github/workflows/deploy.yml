@@ -52,7 +52,7 @@ jobs:
           script: |
             ls -la /home/nrocha/academianovit-chall/
 
-      - name: Create Grafana SMTP secrets in Swarm
+      - name: Recreate Grafana SMTP secrets in Swarm
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VM_HOST }}
@@ -61,21 +61,20 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             set -e
-            # Crear secret grafana_smtp_user si no existe
-            if ! docker secret ls --format '{{.Name}}' | grep -q '^grafana_smtp_user$'; then
-              echo "${{ secrets.DEBUGEMAIL_USER }}" | docker secret create grafana_smtp_user -
-              echo "✅ Secret grafana_smtp_user creado"
-            else
-              echo "ℹ️ Secret grafana_smtp_user ya existe"
-            fi
 
-            # Crear secret grafana_smtp_password si no existe
-            if ! docker secret ls --format '{{.Name}}' | grep -q '^grafana_smtp_password$'; then
-              echo "${{ secrets.DEBUGEMAIL_PASS }}" | docker secret create grafana_smtp_password -
-              echo "✅ Secret grafana_smtp_password creado"
-            else
-              echo "ℹ️ Secret grafana_smtp_password ya existe"
-            fi
+            # Remover secrets existentes (ignorar errores si no existen)
+            docker secret rm grafana_smtp_user grafana_smtp_password || true
+
+            # Esperar un poco para que se propague la eliminación
+            sleep 3
+
+            # Crear nuevos secrets
+            echo "${{ secrets.DEBUGEMAIL_USER }}" | docker secret create grafana_smtp_user -
+            echo "${{ secrets.DEBUGEMAIL_PASS }}" | docker secret create grafana_smtp_password -
+
+            # Verificar que se crearon
+            echo "✅ Secrets creados:"
+            docker secret ls | grep grafana_smtp
 
       - name: Run setup and deploy
         uses: appleboy/ssh-action@v1.0.3
