@@ -183,7 +183,13 @@ services:
   # Loki
   loki:
     image: grafana/loki:2.8.0
-    command: ["-config.file=/etc/loki/loki-config.yaml"]
+    command:
+      - /bin/sh
+      - -c
+      - |
+        mkdir -p /loki/index /loki/cache /loki/chunks /wal &&
+        chown -R 10001:10001 /loki /wal &&
+        exec /usr/bin/loki -config.file=/etc/loki/loki-config.yaml
     volumes:
       - loki_data:/loki
       - loki_wal:/wal
@@ -192,6 +198,11 @@ services:
     configs:
       - source: loki_config
         target: /etc/loki/loki-config.yaml
+    user: root
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
 
   # Promtail
   promtail:
