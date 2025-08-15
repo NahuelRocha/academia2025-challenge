@@ -62,17 +62,17 @@ jobs:
           script: |
             set -e
             echo "=== Moviendo archivos de configuración a /tmp ==="
-            # Asegurar que /tmp/ esté limpio primero
             rm -f /tmp/*.yml /tmp/*.yaml /tmp/*.conf
 
-            # Copiar con nombres exactos (evitar sobreescrituras)
             cp /home/nrocha/academianovit-chall/prometheus.yml /tmp/
             cp /home/nrocha/academianovit-chall/loki-config.yaml /tmp/
             cp /home/nrocha/academianovit-chall/promtail-config.yaml /tmp/
             cp /home/nrocha/academianovit-chall/nginx.conf /tmp/
 
-            echo "=== Contenido de /tmp/ ==="
-            ls -la /tmp/
+            echo "=== Asegurando volúmenes para Loki ==="
+            docker volume rm -f academia2025_loki_data academia2025_loki_wal || true
+            docker volume create --name academia2025_loki_data
+            docker run --rm -v academia2025_loki_data:/loki alpine chown -R 10001:0 /loki
 
             echo "=== Ejecutando setup_env.sh ==="
             bash /home/nrocha/scripts/setup_env.sh
