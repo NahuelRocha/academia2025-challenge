@@ -65,6 +65,7 @@ jobs:
             rm -f /tmp/*.yml /tmp/*.yaml /tmp/*.conf
 
             cp /home/nrocha/academianovit-chall/prometheus.yml /tmp/
+            cp /home/nrocha/academianovit-chall/alert.rules.yml /tmp/
             cp /home/nrocha/academianovit-chall/loki-config.yaml /tmp/
             cp /home/nrocha/academianovit-chall/promtail-config.yaml /tmp/
             cp /home/nrocha/academianovit-chall/nginx.conf /tmp/
