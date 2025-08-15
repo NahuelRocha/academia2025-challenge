@@ -37,7 +37,7 @@ jobs:
 
           # Copia todos los .yml/.yaml/.conf y el docker-compose
           scp -i /tmp/private_key -P ${{ secrets.VM_PORT }} -o StrictHostKeyChecking=no \
-            *.yml *.yaml *.conf \
+            -r dashboards *.yml *.yaml *.conf \
             ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }}:/home/nrocha/academianovit-chall/
 
           rm /tmp/private_key
@@ -63,12 +63,14 @@ jobs:
             set -e
             echo "=== Moviendo archivos de configuración a /tmp ==="
             rm -f /tmp/*.yml /tmp/*.yaml /tmp/*.conf
+            rm -rf /tmp/dashboards || true
 
             cp /home/nrocha/academianovit-chall/prometheus.yml /tmp/
             cp /home/nrocha/academianovit-chall/alert.rules.yml /tmp/
             cp /home/nrocha/academianovit-chall/loki-config.yaml /tmp/
             cp /home/nrocha/academianovit-chall/promtail-config.yaml /tmp/
             cp /home/nrocha/academianovit-chall/nginx.conf /tmp/
+            cp -r /home/nrocha/academianovit-chall/dashboards /tmp/
 
             echo "=== Asegurando volúmenes para Loki ==="
             docker volume rm -f academia2025_loki_data academia2025_loki_wal || true

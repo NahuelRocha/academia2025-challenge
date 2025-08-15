@@ -1,0 +1,9 @@
+apiVersion: 1
+providers:
+  - name: "API Logs"
+    orgId: 1
+    folder: "API Monitoring"
+    type: file
+    disableDeletion: false
+    options:
+      path: /etc/grafana/provisioning/dashboards/api

@@ -9,12 +9,13 @@ clients:
   - url: http://loki:3100/loki/api/v1/push
 
 scrape_configs:
+  # Logs de la API (contenedores)
   - job_name: api_json_logs
     static_configs:
       - targets: [localhost]
         labels:
           job: api
-          __path__: /var/lib/docker/containers/*/*-json.log
+          __path__: /var/lib/docker/containers/*api*/*-json.log # Solo contenedores API
     pipeline_stages:
       - cri: {} # Parse CRI log format
       - json:
@@ -33,14 +34,18 @@ scrape_configs:
       - timestamp:
           source: timestamp
           format: "2006-01-02 15:04:05"
+          location: Local
       - labels:
           level:
           service: "api"
           method:
           status:
+          ip:
+          type:
       - output:
           source: message
 
+  # Logs del sistema
   - job_name: system_logs
     static_configs:
       - targets: [localhost]
