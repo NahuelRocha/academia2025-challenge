@@ -187,6 +187,7 @@ services:
     volumes:
       - loki_data:/loki
       - loki_wal:/wal
+      - loki_compactor:/loki/compactor
     networks:
       - backend
     configs:
