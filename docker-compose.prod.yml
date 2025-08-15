@@ -123,6 +123,8 @@ services:
     configs:
       - source: prometheus_config
         target: /etc/prometheus/prometheus.yml
+      - source: prometheus_alert_rules
+        target: /etc/prometheus/alert.rules.yml
     volumes:
       - prometheus_data:/prometheus
     networks:
