@@ -38,3 +38,32 @@ groups:
         annotations:
           summary: "High memory usage on {{ $labels.instance }}"
           description: "Memory usage is {{ $value }}%"
+
+  - name: system-alerts-extended
+    rules:
+      - alert: LowDiskSpace
+        expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 < 10
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Disk space low on {{ $labels.instance }}"
+          description: "Less than 10% disk space available"
+
+      - alert: HighPostgresConnections
+        expr: (pg_stat_activity_count / pg_postgres_max_connections) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High PostgreSQL connections"
+          description: "{{ $value }}% of max connections in use"
+
+      - alert: FailedLogins
+        expr: sum(rate({job="api", level="warn", message=~"Intento de login fallido.*"}[5m])) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High number of failed login attempts"
+          description: "More than 10 failed logins in last 5 minutes"

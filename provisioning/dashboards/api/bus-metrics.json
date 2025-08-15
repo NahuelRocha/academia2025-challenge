@@ -1,0 +1,42 @@
+{
+  "title": "Business Metrics",
+  "uid": "business-metrics",
+  "schemaVersion": 37,
+  "version": 1,
+  "panels": [
+    {
+      "type": "table",
+      "title": "User Registrations Per Day",
+      "targets": [
+        {
+          "expr": "{job='api', message=~'Usuario creado exitosamente'} | json | line_format '{{.userName}} - {{.timestamp}}'",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "title": "Products Created By Category",
+      "targets": [
+        {
+          "expr": "{job='api', message=~'Producto creado exitosamente'} | json | line_format '{{.category}} - {{.productName}}'",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "title": "Login Attempts vs Successful Logins",
+      "targets": [
+        {
+          "expr": "{job='api', level='info', message=~'Login exitoso'} | json | line_format '{{.userName}} - Success'",
+          "refId": "A"
+        },
+        {
+          "expr": "{job='api', level='warn', message=~'Intento de login fallido.*'} | json | line_format '{{.userName}} - Fail'",
+          "refId": "B"
+        }
+      ]
+    }
+  ]
+}

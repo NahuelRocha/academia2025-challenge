@@ -1,0 +1,68 @@
+{
+  "title": "Sistema & Infraestructura",
+  "uid": "system-infra",
+  "schemaVersion": 37,
+  "version": 1,
+  "panels": [
+    {
+      "type": "graph",
+      "title": "CPU Usage (%)",
+      "targets": [
+        {
+          "expr": "100 - (avg by(instance) (rate(node_cpu_seconds_total{mode='idle'}[5m])) * 100)",
+          "legendFormat": "{{instance}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "graph",
+      "title": "Memory Usage (%)",
+      "targets": [
+        {
+          "expr": "(node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes * 100",
+          "legendFormat": "{{instance}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "graph",
+      "title": "Disk Usage (%)",
+      "targets": [
+        {
+          "expr": "100 - (node_filesystem_avail_bytes{mountpoint='/'} / node_filesystem_size_bytes{mountpoint='/'} * 100)",
+          "legendFormat": "{{instance}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "graph",
+      "title": "Network Traffic",
+      "targets": [
+        {
+          "expr": "rate(node_network_receive_bytes_total[1m])",
+          "legendFormat": "RX {{instance}}",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(node_network_transmit_bytes_total[1m])",
+          "legendFormat": "TX {{instance}}",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "type": "graph",
+      "title": "PostgreSQL Connections",
+      "targets": [
+        {
+          "expr": "pg_stat_activity_count",
+          "legendFormat": "{{instance}}",
+          "refId": "A"
+        }
+      ]
+    }
+  ]
+}

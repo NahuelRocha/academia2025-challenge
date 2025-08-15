@@ -1,0 +1,55 @@
+{
+  "title": "Security & Logs",
+  "uid": "security-logs",
+  "schemaVersion": 37,
+  "version": 1,
+  "panels": [
+    {
+      "type": "graph",
+      "title": "Failed Login Attempts",
+      "targets": [
+        {
+          "expr": "sum(rate({job='api', level='warn', message=~'Intento de login fallido.*'}[5m])) by (userName)",
+          "legendFormat": "{{userName}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "graph",
+      "title": "4xx & 5xx Errors Rate",
+      "targets": [
+        {
+          "expr": "sum(rate({job='api', status=~'4..'}[5m])) by (route)",
+          "legendFormat": "4xx {{route}}",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate({job='api', status=~'5..'}[5m])) by (route)",
+          "legendFormat": "5xx {{route}}",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "title": "Top IPs by Requests",
+      "targets": [
+        {
+          "expr": "topk(10, count_over_time({job='api'} | json | ip [1h]))",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "logs",
+      "title": "Error Logs Aggregated by Type",
+      "targets": [
+        {
+          "expr": "{job='api', level='error'}",
+          "refId": "A"
+        }
+      ]
+    }
+  ]
+}
