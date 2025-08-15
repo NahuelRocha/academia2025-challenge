@@ -248,6 +248,8 @@ configs:
     external: true
   prometheus_config:
     external: true
+  prometheus_alert_rules:
+    external: true
   loki_config:
     external: true
   promtail_config:
