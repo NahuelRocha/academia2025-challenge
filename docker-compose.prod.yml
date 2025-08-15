@@ -222,7 +222,6 @@ volumes:
   grafana_provisioning:
   loki_data:
   loki_wal:
-  loki_compactor:
   nginx_config:
   nginx_certs:
   nginx_logs:
