@@ -233,6 +233,8 @@ secrets:
     external: true
   postgres_db:
     external: true
+  postgres_dsn:
+    external: true
   grafana_admin_password:
     external: true
 
