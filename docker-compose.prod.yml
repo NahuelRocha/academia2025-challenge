@@ -187,7 +187,6 @@ services:
     volumes:
       - loki_data:/loki
       - loki_wal:/wal
-      - loki_compactor:/loki/compactor
     networks:
       - backend
     configs:
@@ -223,6 +222,7 @@ volumes:
   grafana_provisioning:
   loki_data:
   loki_wal:
+  loki_compactor:
   nginx_config:
   nginx_certs:
   nginx_logs:
