@@ -180,16 +180,15 @@ services:
     depends_on:
       - prometheus
 
-  # Loki
+  # Loki - VERSIÓN SIMPLIFICADA Y FUNCIONAL
   loki:
     image: grafana/loki:2.8.0
     command:
-      - /bin/sh
-      - -c
-      - |
-        mkdir -p /loki/index /loki/cache /loki/chunks /wal &&
-        chown -R 10001:10001 /loki /wal &&
-        exec /usr/bin/loki -config.file=/etc/loki/loki-config.yaml
+      [
+        "sh",
+        "-c",
+        "mkdir -p /loki/index /loki/cache /loki/chunks /loki/compactor && chown -R 10001:10001 /loki /wal && su-exec 10001:10001 /usr/bin/loki -config.file=/etc/loki/loki-config.yaml",
+      ]
     volumes:
       - loki_data:/loki
       - loki_wal:/wal
