@@ -166,7 +166,7 @@ services:
       GF_SERVER_SERVE_FROM_SUB_PATH: "true"
     volumes:
       - grafana_data:/var/lib/grafana
-      - grafana_provisioning:/etc/grafana/provisioning
+      - ./dashboards:/etc/grafana/provisioning:ro
     networks:
       - backend
       - frontend
